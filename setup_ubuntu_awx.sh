@@ -25,11 +25,10 @@ fi
 
 REAL_USER=${SUDO_USER:-$USER}
 
-# 2. Cai dat K3s (Lightweight Kubernetes cua Rancher - rat nhe cho may ao)
+# 2. Cai dat K3s
 echo -e "${YELLOW}[1/5] Cai dat K3s (Kubernetes sieu nhe)...${NC}"
 curl -sfL https://get.k3s.io | sh -
 
-# Thiet lap bien moi truong kubeconfig
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 chmod 644 /etc/rancher/k3s/k3s.yaml
 mkdir -p /home/"$REAL_USER"/.kube
@@ -51,17 +50,21 @@ cd /opt/awx-on-k3s
 echo -e "${YELLOW}[3/5] Trien khai AWX Operator...${NC}"
 kubectl apply -k operator
 
-# 5. Cau hinh mat khau Admin va NodePort de truy cap truc tiep qua IP:30080
-echo -e "${YELLOW}[4/5] Cau hinh mat khau Admin va Port truy cap Web...${NC}"
-
-# Tao thu muc luu tru du lieu ben vung
+# 5. Sinh chung chi TLS va cau hinh
+echo -e "${YELLOW}[4/5] Cau hinh chung chi TLS, mat khau Admin va Port truy cap...${NC}"
 mkdir -p /data
 chmod 777 /data
+
+# Tao chung chi TLS tu ky
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -out /opt/awx-on-k3s/base/tls.crt \
+  -keyout /opt/awx-on-k3s/base/tls.key \
+  -subj "/CN=awx/O=awx"
 
 # Dat mat khau Admin la AdminPassword@123
 sed -i 's/password=password/password=AdminPassword@123/g' /opt/awx-on-k3s/base/kustomization.yaml
 
-# Cau hinh AWX truy cap qua NodePort 30080 (Khong can mua domain hay sua file hosts)
+# Cau hinh NodePort 30080
 cat << 'EOF' > /opt/awx-on-k3s/base/awx.yaml
 apiVersion: awx.ansible.com/v1beta1
 kind: AWX
@@ -86,12 +89,10 @@ SERVER_IP=$(hostname -I | awk '{print $1}')
 echo -e "${CYAN}==================================================================${NC}"
 echo -e "${GREEN}[SUCCESS] HE THONG AWX DANG DUOC KHOI TAO THANH CONG!${NC}"
 echo -e "${CYAN}==================================================================${NC}"
-echo -e "Cac Pod AWX dang duoc tai ve va tao Database (khoang 3 - 5 phut)."
-echo -e "Theo doi trang thai tien trinh bang lenh:"
+echo -e "Theo doi trang thai khoi tao bang lenh:"
 echo -e "   ${YELLOW}kubectl -n awx get pods -w${NC}"
 echo -e ""
-echo -e "Khi thay cac Pod 'awx-web' va 'awx-task' co trang thai ${GREEN}Running${NC} (1/1 hoac 4/4):"
-echo -e "Ban mo trinh duyet Web tren may tinh truy cap tai:"
+echo -e "Khi cac Pod co trang thai Running, mo trinh duyet truy cap tai:"
 echo -e "   URL:      ${GREEN}http://${SERVER_IP}:30080${NC}"
 echo -e "   Username: ${GREEN}admin${NC}"
 echo -e "   Password: ${GREEN}AdminPassword@123${NC}"

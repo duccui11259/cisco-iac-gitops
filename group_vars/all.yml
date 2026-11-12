@@ -8,10 +8,10 @@ ansible_connection: ansible.netcommon.network_cli
 
 # Tài khoản SSH và Enable Secret
 ansible_user: admin
-ansible_password: CiscoSSHPassword123!
+ansible_password: admin123
 ansible_become: yes
 ansible_become_method: enable
-ansible_become_password: CiscoEnableSecret123!
+ansible_become_password: admin123
 
 # Cấu hình dịch vụ hệ thống mạng tập trung
 system_services:
