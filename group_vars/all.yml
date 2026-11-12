@@ -9,7 +9,7 @@ ansible_connection: ansible.netcommon.network_cli
 # Tài khoản SSH và Enable Secret
 ansible_user: admin
 ansible_password: admin123
-ansible_become: yes
+ansible_become: no
 ansible_become_method: enable
 ansible_become_password: admin123
 

@@ -4,7 +4,9 @@
 # =====================================================================
 
 - name: "Trien khai cac danh sach Access Control List (ACLs)"
-  cisco.ios.ios_acls:
-    config: "{{ acls_list }}"
-    state: merged
-  when: acls_list is defined
+  cisco.ios.ios_config:
+    lines:
+      - "10 deny ip 192.168.20.0 0.0.0.255 192.168.10.0 0.0.0.255"
+      - "20 permit ip 192.168.99.0 0.0.0.255 any"
+      - "30 permit ip any any"
+    parents: "ip access-list extended ACL_LAN_SECURITY"

@@ -5,16 +5,26 @@
 
 # 1. Cấu hình cổng Switchport L2 (Access / Trunk) cho Switch
 - name: "Cau hinh Switchport Access va Trunk tren Switch"
-  cisco.ios.ios_l2_interfaces:
-    config: "{{ l2_interfaces }}"
-    state: merged
+  cisco.ios.ios_config:
+    lines:
+      - "description {{ item.description | default('') }}"
+      - "{{ 'switchport trunk encapsulation dot1q' if item.mode == 'trunk' else '!' }}"
+      - "switchport mode {{ item.mode }}"
+      - "{{ 'switchport access vlan ' ~ item.access.vlan if (item.mode == 'access' and item.access is defined) else ('switchport trunk allowed vlan ' ~ item.trunk.allowed_vlans if (item.mode == 'trunk' and item.trunk is defined) else '!') }}"
+      - "no shutdown"
+    parents: "interface {{ item.name }}"
+  loop: "{{ l2_interfaces | default([]) }}"
   when: l2_interfaces is defined
 
 # 2. Cấu hình IP cho SVI (Interface VLAN) trên Switch
 - name: "Cau hinh dia chi IP tren Interface Vlan (SVI)"
-  cisco.ios.ios_l3_interfaces:
-    config: "{{ svi_interfaces }}"
-    state: merged
+  cisco.ios.ios_config:
+    lines:
+      - "description {{ item.description | default('') }}"
+      - "ip address {{ item.ipv4[0].address }} {{ item.ipv4[0].netmask }}"
+      - "no shutdown"
+    parents: "interface {{ item.name }}"
+  loop: "{{ svi_interfaces | default([]) }}"
   when: svi_interfaces is defined
 
 # 3. Cấu hình Default Gateway cho Switch L2
@@ -26,14 +36,19 @@
 
 # 4. Cấu hình địa chỉ IP cho cổng Router L3 (Physical, Sub-interface, Loopback)
 - name: "Cau hinh dia chi IP tren cong Router L3"
-  cisco.ios.ios_l3_interfaces:
-    config: "{{ l3_interfaces }}"
-    state: merged
+  cisco.ios.ios_config:
+    lines:
+      - "description {{ item.description | default('') }}"
+      - "ip address {{ item.ipv4[0].address }} {{ item.ipv4[0].netmask }}"
+      - "no shutdown"
+    parents: "interface {{ item.name }}"
+  loop: "{{ l3_interfaces | default([]) }}"
   when: l3_interfaces is defined
 
 # 5. Cấu hình định tuyến tĩnh (Static Route) nếu có khai báo
 - name: "Cau hinh Static Routes cho Router"
-  cisco.ios.ios_static_routes:
-    config: "{{ static_routes }}"
-    state: merged
+  cisco.ios.ios_config:
+    lines:
+      - "ip route {{ item.destination }} {{ item.netmask }} {{ item.next_hop }}"
+  loop: "{{ static_routes | default([]) }}"
   when: static_routes is defined

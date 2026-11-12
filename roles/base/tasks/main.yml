@@ -4,34 +4,24 @@
 # =====================================================================
 
 - name: "1. Dong bo Hostname thiet bi"
-  cisco.ios.ios_hostname:
-    config:
-      hostname: "{{ inventory_hostname }}"
-    state: merged
+  cisco.ios.ios_config:
+    lines:
+      - "hostname {{ inventory_hostname }}"
 
 - name: "2. Thiet lap Banner MOTD canh bao an ninh"
-  cisco.ios.ios_banner:
-    banner: motd
-    text: |
-      *****************************************************************
-      * CANH BAO: HE THONG THIET BI MANG QUAN TRI DUNG GITOPS + AWX    *
-      * MOI HANH VI TRUY CAP KHONG HOP LE DEU DUOC GHI NHAN LOG       *
-      *****************************************************************
-    state: present
+  cisco.ios.ios_config:
+    lines:
+      - "banner motd # CANH BAO: HE THONG THIET BI MANG QUAN TRI DUNG GITOPS + AWX #"
 
 - name: "3. Dong bo thoi gian qua may chu NTP Server"
-  cisco.ios.ios_ntp_global:
-    config:
-      peers:
-        - peer: "{{ system_services.ntp_server }}"
-    state: merged
+  cisco.ios.ios_config:
+    lines:
+      - "ntp server {{ system_services.ntp_server }}"
 
 - name: "4. Day log ve may chu giam sat tap trung Syslog"
-  cisco.ios.ios_logging_global:
-    config:
-      hosts:
-        - host: "{{ system_services.syslog_server }}"
-    state: merged
+  cisco.ios.ios_config:
+    lines:
+      - "logging host {{ system_services.syslog_server }}"
 
 - name: "5. Khoa bao mat duong SSH Line VTY (Chi cho phep SSH, timeout 10 phut)"
   cisco.ios.ios_config:
