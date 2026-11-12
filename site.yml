@@ -1,0 +1,25 @@
+---
+# =====================================================================
+# PLAYBOOK CHÍNH: SITE.YML - TRIỂN KHAI TOÀN DIỆN HẠ TẦNG MẠNG
+# =====================================================================
+
+# Giai đoạn 1: Triển khai cấu hình cơ bản cho TẤT CẢ các thiết bị
+- name: "TRIEN KHAI BASELINE CHO TOAN BO HE THONG MANG"
+  hosts: cisco
+  gather_facts: no
+  roles:
+    - role: base
+
+# Giai đoạn 2: Triển khai phân đoạn mạng VLAN trên các Switch truy cập
+- name: "TRIEN KHAI CAU HINH VLAN CHO NHOM SWITCHES"
+  hosts: switches
+  gather_facts: no
+  roles:
+    - role: vlans
+
+# Giai đoạn 3: Triển khai giao thức định tuyến trên các Router
+- name: "TRIEN KHAI DINH TUYEN OSPF CHO NHOM ROUTERS"
+  hosts: routers
+  gather_facts: no
+  roles:
+    - role: routing

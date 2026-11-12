@@ -1,0 +1,16 @@
+---
+# =====================================================================
+# ROLE: ROUTING - CẤU HÌNH GIAO THỨC ĐỊNH TUYẾN OSPF CHO ROUTERS
+# =====================================================================
+
+- name: "Cau hinh tien trinh dinh tuyen OSPF Process 1 vung Area 0"
+  cisco.ios.ios_ospfv2:
+    config:
+      processes:
+        - process_id: 1
+          router_id: "{{ ansible_host }}"
+          network:
+            - address: 192.168.10.0
+              wildcard_bits: 0.0.0.255
+              area: 0
+    state: merged

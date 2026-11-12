@@ -1,0 +1,10 @@
+---
+# =====================================================================
+# ROLE: VLANS - QUẢN LÝ PHÂN ĐOẠN MẠNG VLAN TRÊN CISCO SWITCH
+# Sử dụng Resource Module cisco.ios.ios_vlans đảm bảo tính lũy đẳng
+# =====================================================================
+
+- name: "Quan ly danh sach VLAN theo mo hinh Infrastructure as Code"
+  cisco.ios.ios_vlans:
+    config: "{{ vlans_list }}"
+    state: merged

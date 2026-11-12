@@ -1,0 +1,21 @@
+---
+# =====================================================================
+# ROLE: BASE - ĐỒNG BỘ CẤU HÌNH NỀN TẢNG CHO TOÀN BỘ THIẾT BỊ CISCO
+# =====================================================================
+
+- name: "Dong bo Hostname cho thiet bi Cisco"
+  cisco.ios.ios_hostname:
+    config:
+      hostname: "{{ inventory_hostname }}"
+    state: merged
+
+- name: "Cau hinh Banner MOTD canh bao truy cap trai phep"
+  cisco.ios.ios_banner:
+    banner: motd
+    text: |
+      *****************************************************************
+      * CANH BAO: DAY LA HE THONG MANG QUAN TRI NOI BO               *
+      * MOI HANH VI TRUY CAP TRAI PHEP DEU SE BI GHI LOG VA XU LY     *
+      * HE THONG DUOC TU DONG HOA BOI GITOPS & ANSIBLE AWX           *
+      *****************************************************************
+    state: present

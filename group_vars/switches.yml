@@ -1,0 +1,21 @@
+---
+# =====================================================================
+# KHAI BÁO DANH SÁCH CÁC VLAN TRÊN TOÀN BỘ SWITCH TRUY CẬP (ACCESS)
+# =====================================================================
+
+vlans_list:
+  - vlan_id: 10
+    name: Ke-Toan
+    state: active
+
+  - vlan_id: 20
+    name: Ky-Thuat
+    state: active
+
+  - vlan_id: 30
+    name: Giam-Doc
+    state: active
+
+  - vlan_id: 99
+    name: Quan-Tri-Mang
+    state: active
