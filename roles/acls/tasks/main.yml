@@ -1,0 +1,10 @@
+---
+# =====================================================================
+# ROLE: ACLS - QUẢN LÝ ACCESS CONTROL LIST THEO MÔ HÌNH IA C
+# =====================================================================
+
+- name: "Trien khai cac danh sach Access Control List (ACLs)"
+  cisco.ios.ios_acls:
+    config: "{{ acls_list }}"
+    state: merged
+  when: acls_list is defined

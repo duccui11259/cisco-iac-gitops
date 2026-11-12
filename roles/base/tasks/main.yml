@@ -1,21 +1,42 @@
 ---
 # =====================================================================
-# ROLE: BASE - ĐỒNG BỘ CẤU HÌNH NỀN TẢNG CHO TOÀN BỘ THIẾT BỊ CISCO
+# ROLE: BASE - CẤU HÌNH NỀN TẢNG & TĂNG CƯỜNG BẢO MẬT (HARDENING)
 # =====================================================================
 
-- name: "Dong bo Hostname cho thiet bi Cisco"
+- name: "1. Dong bo Hostname thiet bi"
   cisco.ios.ios_hostname:
     config:
       hostname: "{{ inventory_hostname }}"
     state: merged
 
-- name: "Cau hinh Banner MOTD canh bao truy cap trai phep"
+- name: "2. Thiet lap Banner MOTD canh bao an ninh"
   cisco.ios.ios_banner:
     banner: motd
     text: |
       *****************************************************************
-      * CANH BAO: DAY LA HE THONG MANG QUAN TRI NOI BO               *
-      * MOI HANH VI TRUY CAP TRAI PHEP DEU SE BI GHI LOG VA XU LY     *
-      * HE THONG DUOC TU DONG HOA BOI GITOPS & ANSIBLE AWX           *
+      * CANH BAO: HE THONG THIET BI MANG QUAN TRI DUNG GITOPS + AWX    *
+      * MOI HANH VI TRUY CAP KHONG HOP LE DEU DUOC GHI NHAN LOG       *
       *****************************************************************
     state: present
+
+- name: "3. Dong bo thoi gian qua may chu NTP Server"
+  cisco.ios.ios_ntp_global:
+    config:
+      peers:
+        - peer: "{{ system_services.ntp_server }}"
+    state: merged
+
+- name: "4. Day log ve may chu giam sat tap trung Syslog"
+  cisco.ios.ios_logging_global:
+    config:
+      hosts:
+        - host: "{{ system_services.syslog_server }}"
+    state: merged
+
+- name: "5. Khoa bao mat duong SSH Line VTY (Chi cho phep SSH, timeout 10 phut)"
+  cisco.ios.ios_config:
+    lines:
+      - exec-timeout 10 0
+      - transport input ssh
+      - logging synchronous
+    parents: line vty 0 4

@@ -1,0 +1,38 @@
+---
+# =====================================================================
+# BIẾN DÀNH RIÊNG CHO NHÓM ROUTERS: BẢO MẬT & ACLS
+# =====================================================================
+
+acls_list:
+  - name: ACL_LAN_SECURITY
+    afi: ipv4
+    aces:
+      # Cấm dải phòng Kỹ thuật truy cập mạng nội bộ phòng Kế toán
+      - sequence: 10
+        grant: deny
+        protocol: ip
+        source:
+          address: 192.168.20.0
+          wildcard_bits: 0.0.0.255
+        destination:
+          address: 192.168.10.0
+          wildcard_bits: 0.0.0.255
+
+      # Cho phép dải Quản trị mạng truy cập toàn quyền
+      - sequence: 20
+        grant: permit
+        protocol: ip
+        source:
+          address: 192.168.99.0
+          wildcard_bits: 0.0.0.255
+        destination:
+          any: true
+
+      # Cho phép các lưu lượng hợp lệ còn lại ra Internet
+      - sequence: 30
+        grant: permit
+        protocol: ip
+        source:
+          any: true
+        destination:
+          any: true

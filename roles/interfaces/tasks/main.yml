@@ -1,0 +1,39 @@
+---
+# =====================================================================
+# ROLE: INTERFACES - CẤU HÌNH CHI TIẾT CỔNG LỚP 2 VÀ CỔNG LỚP 3
+# =====================================================================
+
+# 1. Cấu hình cổng Switchport L2 (Access / Trunk) cho Switch
+- name: "Cau hinh Switchport Access va Trunk tren Switch"
+  cisco.ios.ios_l2_interfaces:
+    config: "{{ l2_interfaces }}"
+    state: merged
+  when: l2_interfaces is defined
+
+# 2. Cấu hình IP cho SVI (Interface VLAN) trên Switch
+- name: "Cau hinh dia chi IP tren Interface Vlan (SVI)"
+  cisco.ios.ios_l3_interfaces:
+    config: "{{ svi_interfaces }}"
+    state: merged
+  when: svi_interfaces is defined
+
+# 3. Cấu hình Default Gateway cho Switch L2
+- name: "Cau hinh Default Gateway cho Switch"
+  cisco.ios.ios_config:
+    lines:
+      - "ip default-gateway {{ default_gateway }}"
+  when: default_gateway is defined
+
+# 4. Cấu hình địa chỉ IP cho cổng Router L3 (Physical, Sub-interface, Loopback)
+- name: "Cau hinh dia chi IP tren cong Router L3"
+  cisco.ios.ios_l3_interfaces:
+    config: "{{ l3_interfaces }}"
+    state: merged
+  when: l3_interfaces is defined
+
+# 5. Cấu hình định tuyến tĩnh (Static Route) nếu có khai báo
+- name: "Cau hinh Static Routes cho Router"
+  cisco.ios.ios_static_routes:
+    config: "{{ static_routes }}"
+    state: merged
+  when: static_routes is defined

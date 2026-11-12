@@ -1,25 +1,38 @@
 ---
 # =====================================================================
-# PLAYBOOK CHÍNH: SITE.YML - TRIỂN KHAI TOÀN DIỆN HẠ TẦNG MẠNG
+# PLAYBOOK CHÍNH: SITE.YML - QUẢN LÝ TOÀN DIỆN CẤU HÌNH HỆ THỐNG MẠNG
+# Mô hình: Infrastructure as Code (IaC) chuẩn Doanh Nghiệp
 # =====================================================================
 
-# Giai đoạn 1: Triển khai cấu hình cơ bản cho TẤT CẢ các thiết bị
-- name: "TRIEN KHAI BASELINE CHO TOAN BO HE THONG MANG"
+# ---------------------------------------------------------------------
+# Giai đoạn 1: Baseline & Security Hardening (Áp dụng cho TOÀN BỘ)
+# Bao gồm: Hostname, Banner MOTD, NTP, Syslog Server, Line VTY SSH
+# ---------------------------------------------------------------------
+- name: "PHASE 1: DONG BO NEN TANG VA BAO MAT HE THONG"
   hosts: cisco
   gather_facts: no
   roles:
     - role: base
 
-# Giai đoạn 2: Triển khai phân đoạn mạng VLAN trên các Switch truy cập
-- name: "TRIEN KHAI CAU HINH VLAN CHO NHOM SWITCHES"
+# ---------------------------------------------------------------------
+# Giai đoạn 2: Cấu hình Switching Lớp 2 (Áp dụng cho nhóm SWITCHES)
+# Bao gồm: Tạo VLANs, cấu hình Switchport Access, Trunk Uplink, SVI Management
+# ---------------------------------------------------------------------
+- name: "PHASE 2: TRIEN KHAI PHAN DOAN MANG VLANS VA CONG ACCESS/TRUNK"
   hosts: switches
   gather_facts: no
   roles:
     - role: vlans
+    - role: interfaces
 
-# Giai đoạn 3: Triển khai giao thức định tuyến trên các Router
-- name: "TRIEN KHAI DINH TUYEN OSPF CHO NHOM ROUTERS"
+# ---------------------------------------------------------------------
+# Giai đoạn 3: Cấu hình Routing Lớp 3 & An ninh mạng (Áp dụng cho ROUTERS)
+# Bao gồm: Gán IP WAN/LAN, Định tuyến tĩnh, Định tuyến OSPF, Bộ lọc ACLs
+# ---------------------------------------------------------------------
+- name: "PHASE 3: TRIEN KHAI IP INTERFACE, DINH TUYEN VA BO LOC ACL"
   hosts: routers
   gather_facts: no
   roles:
+    - role: interfaces
     - role: routing
+    - role: acls

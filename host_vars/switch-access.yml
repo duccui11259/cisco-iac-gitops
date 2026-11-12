@@ -1,0 +1,38 @@
+---
+# =====================================================================
+# CẤU HÌNH CHI TIẾT RIÊNG CHO SWITCH-ACCESS
+# Quản lý cấu hình cổng Access, Trunk và SVI Management
+# =====================================================================
+
+# 1. Cấu hình cổng L2 (Access / Trunk)
+l2_interfaces:
+  - name: GigabitEthernet0/1
+    mode: access
+    access:
+      vlan: 10
+    description: "KET NOI MAY IN & PC PHONG KE TOAN"
+
+  - name: GigabitEthernet0/2
+    mode: access
+    access:
+      vlan: 20
+    description: "KET NOI MAY TRAM PHONG KY THUAT"
+
+  - name: GigabitEthernet0/24
+    mode: trunk
+    trunk:
+      encapsulation: dot1q
+      allowed_vlans: "10,20,30,99"
+    description: "UPLINK TRUNK KET NOI LEN CORE ROUTER/SWITCH"
+
+# 2. Cấu hình địa chỉ IP Quản trị trên Interface VLAN (SVI)
+svi_interfaces:
+  - name: Vlan99
+    description: "IP QUAN TRI SVI ACCESS SWITCH"
+    ipv4:
+      - address: 192.168.99.10
+        netmask: 255.255.255.0
+    enabled: true
+
+# 3. Default Gateway cho Switch L2
+default_gateway: 192.168.99.1

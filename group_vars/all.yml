@@ -1,16 +1,23 @@
 ---
 # =====================================================================
-# THÔNG TIN XÁC THỰC VÀ PHƯƠNG THỨC KẾT NỐI CHUNG CHO THIẾT BỊ MẠNG
+# THÔNG TIN XÁC THỰC VÀ THAM SỐ DỊCH VỤ TOÀN HỆ THỐNG
 # =====================================================================
 
-# Phương thức kết nối chuẩn chuyên dụng cho Network Automation
+# Phương thức kết nối SSH CLI mạng
 ansible_connection: ansible.netcommon.network_cli
 
-# Tài khoản SSH đăng nhập vào thiết bị Cisco (hãy đổi theo cấu hình Lab của bạn)
+# Tài khoản SSH và Enable Secret
 ansible_user: admin
 ansible_password: CiscoSSHPassword123!
-
-# Cấu hình tự động chuyển sang chế độ Privilege Exec Mode (enable mode)
 ansible_become: yes
 ansible_become_method: enable
 ansible_become_password: CiscoEnableSecret123!
+
+# Cấu hình dịch vụ hệ thống mạng tập trung
+system_services:
+  domain_name: "lab.local"
+  ntp_server: "192.168.10.100"
+  syslog_server: "192.168.10.200"
+  dns_servers:
+    - "8.8.8.8"
+    - "1.1.1.1"
