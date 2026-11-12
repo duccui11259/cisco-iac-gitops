@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# SCRIPT TỰ ĐỘNG DỰNG ANSIBLE AWX TRÊN UBUNTU SERVER (VMWARE) BẰNG DOCKER COMPOSE
-# Đồ án tốt nghiệp: Xây dựng hệ thống tự động hóa cấu hình mạng (IaC) GitOps + AWX
+# SCRIPT TỰ ĐỘNG DỰNG ANSIBLE AWX TRÊN UBUNTU SERVER (K3S + AWX OPERATOR)
+# Chuẩn kiến trúc chính thức của Red Hat & Ansible cho Lab đồ án tốt nghiệp
 # ==============================================================================
 
 set -e
@@ -14,7 +14,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${CYAN}==================================================================${NC}"
-echo -e "${GREEN}  BAT DAU CAI DAT DOCKER, DOCKER COMPOSE VA ANSIBLE AWX CHO LAB   ${NC}"
+echo -e "${GREEN}  BAT DAU CAI DAT ANSIBLE AWX (K3S + AWX OPERATOR) CHO PHONG LAB   ${NC}"
 echo -e "${CYAN}==================================================================${NC}"
 
 # 1. Kiem tra quyen root
@@ -25,76 +25,74 @@ fi
 
 REAL_USER=${SUDO_USER:-$USER}
 
-# 2. Cap nhat he thong va cai dat cac goi co ban
-echo -e "${YELLOW}[1/5] Cap nhat Repository va cai dat cac goi can thiet...${NC}"
-apt-get update -y
-apt-get install -y curl apt-transport-https ca-certificates gnupg lsb-release git net-tools
+# 2. Cai dat K3s (Lightweight Kubernetes cua Rancher - rat nhe cho may ao)
+echo -e "${YELLOW}[1/5] Cai dat K3s (Kubernetes sieu nhe)...${NC}"
+curl -sfL https://get.k3s.io | sh -
 
-# 3. Cai dat Docker Engine chinh thuc
-echo -e "${YELLOW}[2/5] Cai dat Docker va Docker Compose Plugin chinh thuc tu Docker Inc...${NC}"
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
-chmod a+r /etc/apt/keyrings/docker.gpg
+# Thiet lap bien moi truong kubeconfig
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+chmod 644 /etc/rancher/k3s/k3s.yaml
+mkdir -p /home/"$REAL_USER"/.kube
+cp /etc/rancher/k3s/k3s.yaml /home/"$REAL_USER"/.kube/config
+chown -R "$REAL_USER":"$REAL_USER" /home/"$REAL_USER"/.kube
 
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  tee /etc/apt/sources.list.d/docker.list > /dev/null
+echo -e "${CYAN}[i] Cho node K3s san sang...${NC}"
+until kubectl get node &>/dev/null; do
+  sleep 2
+done
 
-apt-get update -y
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+# 3. Clone du an chuan kurokobo/awx-on-k3s
+echo -e "${YELLOW}[2/5] Tai ma nguon kurokobo/awx-on-k3s tu GitHub...${NC}"
+rm -rf /opt/awx-on-k3s
+git clone https://github.com/kurokobo/awx-on-k3s.git /opt/awx-on-k3s
+cd /opt/awx-on-k3s
 
-systemctl enable docker
-systemctl start docker
-usermod -aG docker "$REAL_USER"
+# 4. Cai dat AWX Operator
+echo -e "${YELLOW}[3/5] Trien khai AWX Operator...${NC}"
+kubectl apply -k operator
 
-# 4. Clone AWX on Docker va cau hinh .env
-echo -e "${YELLOW}[3/5] Tai ma nguon AWX on Docker va cau hinh file moi truong .env...${NC}"
-mkdir -p /opt
-cd /opt
+# 5. Cau hinh mat khau Admin va NodePort de truy cap truc tiep qua IP:30080
+echo -e "${YELLOW}[4/5] Cau hinh mat khau Admin va Port truy cap Web...${NC}"
 
-if [ -d "/opt/awx-on-docker" ]; then
-  echo -e "${CYAN}[i] Thu muc /opt/awx-on-docker da ton tai. Tien hanh cap nhat...${NC}"
-  cd /opt/awx-on-docker
-  git pull || true
-else
-  git clone https://github.com/kurokobo/awx-on-docker.git /opt/awx-on-docker
-  cd /opt/awx-on-docker
-fi
+# Tao thu muc luu tru du lieu ben vung
+mkdir -p /data
+chmod 777 /data
 
-chown -R "$REAL_USER":"$REAL_USER" /opt/awx-on-docker
+# Dat mat khau Admin la AdminPassword@123
+sed -i 's/password=password/password=AdminPassword@123/g' /opt/awx-on-k3s/base/kustomization.yaml
 
-# Tao file .env neu chua co hoac ghi de theo chuan Lab
-cat << 'EOF' > /opt/awx-on-docker/.env
-# =====================================================================
-# FILE MOI TRUONG AWX ON DOCKER
-# =====================================================================
-AWX_VERSION=24.6.1
-HOST_PORT=80
-AWX_ADMIN_USER=admin
-AWX_ADMIN_PASSWORD=AdminPassword@123
-SECRET_KEY=DuAnTotNghiepGitOpsAnsibleAWXSecretKey2026
-POSTGRES_DB=awx
-POSTGRES_USER=awx
-POSTGRES_PASSWORD=awxpostgrespassword
+# Cau hinh AWX truy cap qua NodePort 30080 (Khong can mua domain hay sua file hosts)
+cat << 'EOF' > /opt/awx-on-k3s/base/awx.yaml
+apiVersion: awx.ansible.com/v1beta1
+kind: AWX
+metadata:
+  name: awx
+  namespace: awx
+spec:
+  service_type: nodeport
+  nodeport_port: 30080
+  admin_user: admin
+  admin_password_secret: awx-admin-password
+  projects_persistence: true
+  projects_existing_claim: awx-projects-claim
 EOF
 
-# 5. Khoi chay Docker Compose
-echo -e "${YELLOW}[4/5] Khoi chay he thong AWX qua Docker Compose (chay nen)...${NC}"
-cd /opt/awx-on-docker
-docker compose up -d
+# 6. Trien khai AWX
+echo -e "${YELLOW}[5/5] Khoi tao toan bo cac Pod cua AWX...${NC}"
+kubectl apply -k base
 
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 echo -e "${CYAN}==================================================================${NC}"
-echo -e "${GREEN}[SUCCESS] HE THONG DANG KHOI TAO THANH CONG!${NC}"
+echo -e "${GREEN}[SUCCESS] HE THONG AWX DANG DUOC KHOI TAO THANH CONG!${NC}"
 echo -e "${CYAN}==================================================================${NC}"
-echo -e "Cac Container dang khoi dong va thuc hien Migrate Database (khoang 3 - 5 phut)."
-echo -e "Theo doi tien trinh khoi tao bang lenh:"
-echo -e "   ${YELLOW}docker compose -f /opt/awx-on-docker/docker-compose.yml logs -f awx-web${NC}"
+echo -e "Cac Pod AWX dang duoc tai ve va tao Database (khoang 3 - 5 phut)."
+echo -e "Theo doi trang thai tien trinh bang lenh:"
+echo -e "   ${YELLOW}kubectl -n awx get pods -w${NC}"
 echo -e ""
-echo -e "Sau khi khoi tao xong, truy cap giao dien Web tai dia chi:"
-echo -e "   URL:      ${GREEN}http://${SERVER_IP}${NC} (hoac http://localhost)"
+echo -e "Khi thay cac Pod 'awx-web' va 'awx-task' co trang thai ${GREEN}Running${NC} (1/1 hoac 4/4):"
+echo -e "Ban mo trinh duyet Web tren may tinh truy cap tai:"
+echo -e "   URL:      ${GREEN}http://${SERVER_IP}:30080${NC}"
 echo -e "   Username: ${GREEN}admin${NC}"
 echo -e "   Password: ${GREEN}AdminPassword@123${NC}"
 echo -e "${CYAN}==================================================================${NC}"
