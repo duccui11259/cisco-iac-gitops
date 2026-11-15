@@ -164,9 +164,11 @@ def run_bridge(listen_port, telnet_port, name):
 
 if __name__ == "__main__":
     t_r = threading.Thread(target=run_bridge, args=(2221, 5000, "router-edge"), daemon=True)
+    t_c = threading.Thread(target=run_bridge, args=(2223, 5001, "router-core"), daemon=True)
     t_s = threading.Thread(target=run_bridge, args=(2222, 5003, "switch-access"), daemon=True)
     t_r.start()
+    t_c.start()
     t_s.start()
-    print("Cisco SSH Bridge daemon active.", flush=True)
+    print("Cisco SSH Bridge daemon active (router-edge: 2221, router-core: 2223, switch-access: 2222).", flush=True)
     while True:
         time.sleep(1)

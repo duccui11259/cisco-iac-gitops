@@ -43,27 +43,37 @@ def update_awx_hosts(wsl_ip, win_ip):
         print("[-] AWX not responding yet, skipping host update.")
         return
 
-    # Update Host 3 (router-edge) and Host 4 (switch-access)
-    hosts_vars = {
-        3: f"ansible_host: {win_ip}\nansible_port: 2221\nansible_network_os: cisco.ios.ios",
-        4: f"ansible_host: {win_ip}\nansible_port: 2222\nansible_network_os: cisco.ios.ios"
+    # Map host names to their SSH Bridge ports
+    port_map = {
+        "router-edge": 2221,
+        "router-core": 2223,
+        "switch-access": 2222
     }
-    
-    for hid, vars_str in hosts_vars.items():
-        try:
-            req = urllib.request.Request(
-                f"{base_url}/api/v2/hosts/{hid}/",
-                data=json.dumps({"variables": vars_str}).encode("utf-8"),
-                headers={
-                    "Authorization": auth_header,
-                    "Content-Type": "application/json"
-                },
-                method="PATCH"
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                print(f"[+] AWX Host {hid} updated with ansible_host: {win_ip}")
-        except Exception as e:
-            print(f"[-] Error updating Host {hid}: {e}")
+
+    try:
+        req = urllib.request.Request(f"{base_url}/api/v2/inventories/2/hosts/")
+        req.add_header('Authorization', auth_header)
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+            for h in data.get('results', []):
+                hname = h.get('name')
+                hid = h.get('id')
+                if hname in port_map:
+                    port = port_map[hname]
+                    vars_str = f"ansible_host: {win_ip}\nansible_port: {port}\nansible_network_os: cisco.ios.ios"
+                    patch_req = urllib.request.Request(
+                        f"{base_url}/api/v2/hosts/{hid}/",
+                        data=json.dumps({"variables": vars_str}).encode("utf-8"),
+                        headers={
+                            "Authorization": auth_header,
+                            "Content-Type": "application/json"
+                        },
+                        method="PATCH"
+                    )
+                    with urllib.request.urlopen(patch_req, timeout=5) as p_resp:
+                        print(f"[+] AWX Host '{hname}' (ID {hid}) updated with ansible_host: {win_ip}, port: {port}")
+    except Exception as e:
+        print(f"[-] Error querying or updating AWX hosts: {e}")
 
 if __name__ == "__main__":
     wsl_ip = get_wsl_ip()

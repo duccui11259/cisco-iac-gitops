@@ -20,13 +20,14 @@
             ▼
    [ Ansible AWX (K3s in WSL2) ]
      ├── Project: Cisco-IaC-GitOps (Auto Sync SCM)
-     ├── Inventory: Cisco-Lab-Inventory
+     ├── Inventory: Cisco-Lab-Inventory (hosts.ini)
      └── Job Template: Deploy-Cisco-Network
             │ (Dynamic Runner Pod / SSH)
             ▼
    [ Windows Host SSH Bridge ] (cisco_bridge.py)
-     ├── Port 2221 ──► Telnet 127.0.0.1:5000 (Router-Edge: Cisco 7200)
-     └── Port 2222 ──► Telnet 127.0.0.1:5003 (Switch-Access: Cisco 3725)
+     ├── Port 2221 ──► Telnet 127.0.0.1:5000 (router-edge: Cisco 7200)
+     ├── Port 2223 ──► Telnet 127.0.0.1:5001 (router-core: Cisco 7200)
+     └── Port 2222 ──► Telnet 127.0.0.1:5003 (switch-access: Cisco 3725)
             │
             ▼
      [ GNS3 Network Lab ] (Thiết bị mạng Cisco IOS)
@@ -40,20 +41,22 @@
 d:\Qtmv2/
 ├── start_lab.bat               # Script khởi động tự động 1-Click toàn bộ hệ thống
 ├── stop_lab.bat                # Script dừng an toàn các tiến trình nền
-├── cisco_bridge.py             # SSH to Telnet Console Bridge Daemon (Port 2221, 2222)
+├── cisco_bridge.py             # SSH to Telnet Console Bridge Daemon (Port 2221, 2223, 2222)
+├── sync_network_ip.py          # Script tự động dò tìm và đồng bộ IP mạng ảo WSL - Windows
 ├── bridge_key.pem              # Khóa RSA host key cho SSH Bridge
 ├── ansible.cfg                 # Cấu hình Ansible tối ưu cho Network Automation
-├── hosts.ini                   # Inventory cục bộ kiểm thử (Router & Switch)
+├── hosts.ini                   # Inventory phân nhóm Router (Edge, Core) & Switch
 ├── site.yml                    # Playbook chính điều phối toàn bộ vai trò
 ├── collections/
 │   └── requirements.yml        # Định nghĩa collection cisco.ios và ansible.netcommon
 ├── group_vars/
 │   ├── all.yml                 # Khai báo thông tin xác thực SSH, NTP, Syslog, DNS chung
-│   ├── routers.yml             # Biến dùng chung cho toàn bộ Router
+│   ├── routers.yml             # Biến dùng chung cho toàn bộ Router (OSPF, Services)
 │   └── switches.yml            # Khai báo danh sách VLAN cấp phát cho Switch
 ├── host_vars/
-│   ├── router-edge.yml         # Khai báo Interface IP, OSPF, Default Route, ACL
-│   └── switch-access.yml       # Khai báo Port Access VLAN, Trunk 802.1Q, SVI Vlan 1
+│   ├── router-edge.yml         # Cấu hình IP WAN ISP, BGP/Static Default Route, ACL
+│   ├── router-core.yml         # Cấu hình Sub-interfaces (Inter-VLAN Gateway), OSPF Area 0
+│   └── switch-access.yml       # Cấu hình Port Access VLAN, Trunk 802.1Q, SVI Vlan 1
 ├── roles/
 │   ├── base/                   # Cấu hình Hostname, Banner MOTD, Security Hardening
 │   ├── interfaces/             # Cấu hình IP Address, L2/L3 Interface State
@@ -66,7 +69,37 @@ d:\Qtmv2/
 
 ---
 
-## 3. Hướng dẫn khởi động hệ thống (Startup Guide)
+## 3. Cơ chế định danh thiết bị: Làm sao Ansible phân biệt Router-Edge và Router-Core?
+
+Đây là nguyên lý cốt lõi của Ansible Automation:
+
+### Quy tắc khớp tên (Name-Matching)
+Trong Ansible, thư mục `host_vars/` tuân thủ nguyên tắc:
+> **Tên file `.yml` trong thư mục `host_vars/` phải trùng khớp 100% với tên Host được khai báo trong Inventory (`hosts.ini` hoặc AWX).**
+
+- Khi chạy cho Host `router-edge` -> Ansible tự động nạp file [host_vars/router-edge.yml](file:///d:/Qtmv2/host_vars/router-edge.yml).
+- Khi chạy cho Host `router-core` -> Ansible tự động nạp file [host_vars/router-core.yml](file:///d:/Qtmv2/host_vars/router-core.yml).
+- Khi chạy cho Host `switch-access` -> Ansible tự động nạp file [host_vars/switch-access.yml](file:///d:/Qtmv2/host_vars/switch-access.yml).
+
+### Bảng phân bổ cổng kết nối (Port Mapping):
+
+| Tên thiết bị trong Inventory | Cổng SSH Bridge (Windows) | Cổng Telnet Console (GNS3) | File cấu hình riêng (`host_vars/`) | Vai trò trong mô hình mạng |
+| :--- | :--- | :--- | :--- | :--- |
+| **`router-edge`** | `172.30.32.1:2221` | `127.0.0.1:5000` (R1) | `host_vars/router-edge.yml` | Biên mạng kết nối ISP, NAT, ACL |
+| **`router-core`** | `172.30.32.1:2223` | `127.0.0.1:5001` (R2) | `host_vars/router-core.yml` | Lõi định tuyến, Inter-VLAN Gateway |
+| **`switch-access`**| `172.30.32.1:2222` | `127.0.0.1:5003` (R3) | `host_vars/switch-access.yml`| Chuyển mạch lớp 2, chia VLAN phòng ban |
+
+> **Trong môi trường doanh nghiệp thực tế:**  
+> Mỗi thiết bị thật sẽ có một địa chỉ IP quản trị riêng (Out-of-band Management IP). Khi đó file `hosts.ini` chỉ cần khai báo địa chỉ IP thật của từng con:
+> ```ini
+> [routers]
+> router-edge ansible_host=192.168.100.1
+> router-core ansible_host=192.168.100.2
+> ```
+
+---
+
+## 4. Hướng dẫn khởi động hệ thống (Startup Guide)
 
 ### Cách 1: Khởi động tự động bằng 1-Click (Khuyên dùng)
 Chỉ cần nhấp đúp chuột vào file:
@@ -75,14 +108,15 @@ d:\Qtmv2\start_lab.bat
 ```
 Script sẽ tự động:
 1. Kích hoạt môi trường WSL2 Kali Linux và dịch vụ Kubernetes K3s chứa AWX.
-2. Khởi chạy tiến trình `cisco_bridge.py` trên 2 cổng `2221` (Router) và `2222` (Switch).
+2. Khởi chạy tiến trình `cisco_bridge.py` trên 3 cổng: `2221` (Edge), `2223` (Core), `2222` (Switch).
 3. Khởi chạy `cloudflared` tạo tunnel đưa Webhook AWX ra Internet.
-4. Tự động bật phần mềm GNS3 với dự án `Lab-GitOps-Cisco`.
-5. Tự động mở trình duyệt web đến giao diện AWX: `http://172.30.44.148:30080`.
+4. Tự động chạy `sync_network_ip.py` dò tìm địa chỉ IP mạng ảo mới nhất và đồng bộ vào AWX Inventory.
+5. Tự động bật phần mềm GNS3 với dự án `Lab-GitOps-Cisco`.
+6. Tự động mở trình duyệt web đến giao diện AWX theo đúng IP hiện tại.
 
 **Thao tác của bạn sau khi chạy script:**
-- Trên GNS3: Nhấp vào nút **▶ (Start all nodes)** để bật nguồn 2 thiết bị R1 và R3.
-- Chờ 15-20 giây cho 2 thiết bị Cisco nạp xong IOS.
+- Trên GNS3: Nhấp vào nút **▶ (Start all nodes)** để bật nguồn các thiết bị.
+- Chờ 15-20 giây cho thiết bị Cisco nạp xong IOS.
 
 ---
 
@@ -90,17 +124,14 @@ Script sẽ tự động:
 
 #### Bước 1: Khởi động GNS3 Lab
 1. Mở GNS3, chọn mở dự án: `C:\Users\TechCare\GNS3\projects\Lab-GitOps-Cisco\Lab-GitOps-Cisco.gns3`.
-2. Bấm nút Play màu xanh lá để khởi động Router `R1` (c7200) và Switch `R3` (c3725).
-3. Đảm bảo cổng Telnet console là:
-   - `R1` (`router-edge`): `127.0.0.1:5000`
-   - `R3` (`switch-access`): `127.0.0.1:5003`
+2. Bấm nút Play màu xanh lá để khởi động Router `R1`, Router `R2` và Switch `R3`.
 
 #### Bước 2: Khởi chạy SSH Bridge trên Windows
 Mở CMD / PowerShell tại `d:\Qtmv2` và gõ:
 ```cmd
 python cisco_bridge.py
 ```
-*Kết quả:* Thông báo `SSH Bridge listening on 0.0.0.0:2221` và `0.0.0.0:2222`.
+*Kết quả:* Thông báo `SSH Bridge listening on 0.0.0.0:2221`, `2223` và `2222`.
 
 #### Bước 3: Khởi động Kubernetes K3s & AWX trong WSL2
 Mở một cửa sổ terminal mới và gõ:
@@ -122,7 +153,7 @@ Màn hình sẽ hiển thị đường link có dạng: `https://<subdomain>.try
 
 ---
 
-## 4. Cấu hình GitHub Webhook cho GitOps
+## 5. Cấu hình GitHub Webhook cho GitOps
 
 1. Truy cập vào GitHub Repo: [https://github.com/duccui11259/cisco-iac-gitops/settings/hooks](https://github.com/duccui11259/cisco-iac-gitops/settings/hooks)
 2. Nhấn **Add webhook** (hoặc chỉnh sửa webhook hiện có):
@@ -135,7 +166,7 @@ Màn hình sẽ hiển thị đường link có dạng: `https://<subdomain>.try
 
 ---
 
-## 5. Quy trình làm việc GitOps hằng ngày (Workflow)
+## 6. Quy trình làm việc GitOps hằng ngày (Workflow)
 
 Người quản trị mạng không bao giờ gõ lệnh trực tiếp trên thiết bị (No Direct CLI Access). Mọi thay đổi đều được khai báo dưới dạng Code (Declarative IaC).
 
@@ -173,7 +204,7 @@ git push origin main
 
 ---
 
-## 6. Kịch bản Demo và Thuyết minh bảo vệ Đồ án tốt nghiệp
+## 7. Kịch bản Demo và Thuyết minh bảo vệ Đồ án tốt nghiệp
 
 ### Kịch bản Demo trực tiếp trước Hội đồng (3 - 5 phút):
 1. **Bước 1: Trình diễn trạng thái ban đầu**
@@ -200,7 +231,7 @@ git push origin main
 
 ---
 
-## 7. Các câu hỏi phản biện thường gặp & Hướng dẫn trả lời
+## 8. Các câu hỏi phản biện thường gặp & Hướng dẫn trả lời
 
 ### Q1: GitOps khác biệt gì so với việc viết script Python (Netmiko/Paramiko) truyền thống?
 *Trả lời:*
@@ -233,7 +264,7 @@ git push origin main
 
 ---
 
-## 8. Dừng hệ thống khi không sử dụng
+## 9. Dừng hệ thống khi không sử dụng
 Khi kết thúc buổi làm việc hoặc demo, nhấp đúp vào file:
 ```cmd
 d:\Qtmv2\stop_lab.bat
