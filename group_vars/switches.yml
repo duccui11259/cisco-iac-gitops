@@ -19,3 +19,6 @@ vlans_list:
   - vlan_id: 99
     name: Quan-Tri-Mang
     state: active
+  - vlan_id: 50
+    name: Marketing
+    state: active
