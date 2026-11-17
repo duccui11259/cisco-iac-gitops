@@ -3,8 +3,11 @@
 # ROLE: VLANS - QUẢN LÝ PHÂN ĐOẠN MẠNG TRÊN CISCO SWITCH
 # =====================================================================
 
-- name: "Dong bo cau hinh Vlan Switching tren Switch"
+- name: "Dong bo cau hinh Vlan Switching tren Switch qua SVI"
   cisco.ios.ios_config:
     lines:
-      - "description VLAN-DEFAULT-MANAGEMENT"
-    parents: "interface Vlan1"
+      - "description {{ item.name }}"
+      - "no shutdown"
+    parents: "interface Vlan{{ item.vlan_id }}"
+  loop: "{{ vlans_list | default([]) }}"
+  when: vlans_list is defined

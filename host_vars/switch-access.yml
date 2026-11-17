@@ -16,6 +16,12 @@ l2_interfaces:
       vlan: 20
     description: "KET NOI MAY TRAM PHONG KY THUAT"
 
+  - name: FastEthernet1/3
+    mode: access
+    access:
+      vlan: 50
+    description: "KET NOI MAY TRAM PHONG MARKETING"
+
   - name: FastEthernet1/15
     mode: trunk
     trunk:
